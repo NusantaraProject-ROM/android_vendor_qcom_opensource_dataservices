@@ -1130,7 +1130,7 @@ int rtrmnet_ctl_newvnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 {
 	struct rtattr *attrinfo, *datainfo, *linkinfo;
 	struct ifla_vlan_flags flags;
-	int devindex = 0, val = 0;
+	unsigned int devindex = 0, val = 0;
 	char *kind = "rmnet";
 	struct nlmsg req;
 	short id;
@@ -1151,7 +1151,7 @@ int rtrmnet_ctl_newvnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1248,7 +1248,7 @@ int rtrmnet_ctl_newvnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 int rtrmnet_ctl_delvnd(rmnetctl_hndl_t *hndl, char *vndname,
 		       uint16_t *error_code)
 {
-	int devindex = 0;
+	unsigned int devindex = 0;
 	struct nlmsg req;
 
 	if (!hndl || !vndname || !error_code)
@@ -1263,7 +1263,7 @@ int rtrmnet_ctl_delvnd(rmnetctl_hndl_t *hndl, char *vndname,
 
 	/* Get index of vndname*/
 	devindex = if_nametoindex(vndname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1287,7 +1287,7 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 	struct ifla_vlan_flags flags;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0, val = 0;
+	unsigned int devindex = 0, val = 0;
 	size_t reqsize;
 	short id;
 
@@ -1306,7 +1306,7 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1395,7 +1395,7 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 int rtrmnet_ctl_bridgevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 			  uint16_t *error_code)
 {
-	int devindex = 0, vndindex = 0;
+	unsigned int devindex = 0, vndindex = 0;
 	struct rtattr *masterinfo;
 	struct nlmsg req;
 	size_t reqsize;
@@ -1413,13 +1413,13 @@ int rtrmnet_ctl_bridgevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 
 	/* Get index of vndname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
 
 	vndindex = if_nametoindex(vndname);
-	if (vndindex < 0) {
+	if (vndindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1457,8 +1457,8 @@ int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 	struct tcmsg  flowinfo;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0;
-	int val = 0;
+	unsigned int devindex = 0;
+	unsigned int val = 0;
 	size_t reqsize =0;
 
 	memset(&req, 0, sizeof(req));
@@ -1478,7 +1478,7 @@ int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1568,8 +1568,8 @@ int rtrmnet_delete_flow(rmnetctl_hndl_t *hndl,
 	struct tcmsg  flowinfo;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0;
-	int val = 0;
+	unsigned int devindex = 0;
+	unsigned int val = 0;
 	size_t reqsize;
 
 	memset(&req, 0, sizeof(req));
@@ -1588,7 +1588,7 @@ int rtrmnet_delete_flow(rmnetctl_hndl_t *hndl,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1678,8 +1678,8 @@ int rtrmnet_control_flow(rmnetctl_hndl_t *hndl,
 	struct tcmsg  flowinfo;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0;
-	int val = 0;
+	unsigned int devindex = 0;
+	unsigned int val = 0;
 	size_t reqsize;
 
 	memset(&req, 0, sizeof(req));
@@ -1698,7 +1698,7 @@ int rtrmnet_control_flow(rmnetctl_hndl_t *hndl,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1788,8 +1788,8 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 	struct tcmsg  flowinfo;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0;
-	int val = 0;
+	unsigned int devindex = 0;
+	unsigned int val = 0;
 	size_t reqsize;
 
 	memset(&req, 0, sizeof(req));
@@ -1808,7 +1808,7 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
@@ -1895,8 +1895,8 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 	struct tcmsg  flowinfo;
 	char *kind = "rmnet";
 	struct nlmsg req;
-	int devindex = 0;
-	int val = 0;
+	unsigned int devindex = 0;
+	unsigned int val = 0;
 	size_t reqsize;
 
 	memset(&req, 0, sizeof(req));
@@ -1915,7 +1915,7 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 
 	/* Get index of devname*/
 	devindex = if_nametoindex(devname);
-	if (devindex < 0) {
+	if (devindex == 0) {
 		*error_code = errno;
 		return RMNETCTL_KERNEL_ERR;
 	}
