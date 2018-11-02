@@ -16,7 +16,7 @@ cc_defaults {
 
 cc_library_shared {
     name: "librmnetctl",
-    header_libs: ["qti_kernel_headers"],
+    header_libs: ["generated_kernel_headers"],
     defaults: ["librmnetctl_defaults"],
     srcs: ["src/librmnetctl.c"],
 }
