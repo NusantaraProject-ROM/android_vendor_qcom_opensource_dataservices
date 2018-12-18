@@ -247,7 +247,12 @@ static void rmnet_api_usage(void)
 	printf(_2TABS" <iface_id>              int - iface id\n\n");
 	printf(_2TABS" <flags>                 int - flags\n\n");
 	printf("rmnetcli -n systemdown    <real dev> <vnd name> <instance>\n\n ");
-
+	printf("rmnetcli -n qmiscale      <real dev> set ACK scale factor\n\n");
+	printf(_2TABS" <vnd_name>              string - vnd device name\n\n");
+	printf(_2TABS" <scale>                 int - scale factor\n\n");
+	printf("rmnetcli -n wdafreq       <real dev> set powersave poll freq\n\n");
+	printf(_2TABS" <vnd_name>              string - vnd device name\n\n");
+	printf(_2TABS" <freq>                  int - frequency\n\n");
 
 }
 
@@ -447,6 +452,22 @@ static int rmnet_api_call(int argc, char *argv[])
 			return_code = rtrmnet_flow_state_down(handle, argv[1], argv[2],
 							    _STRTOUI32(argv[3]),
 							    &error_number);
+		} else if (!strcmp(*argv, "qmiscale")) {
+			_RMNETCLI_CHECKNULL(argv[1]);
+			_RMNETCLI_CHECKNULL(argv[2]);
+			_RMNETCLI_CHECKNULL(argv[3]);
+
+			return_code = rtrmnet_set_qmi_scale(handle, argv[1], argv[2],
+							    _STRTOUI32(argv[3]),
+							    &error_number);
+		} else if (!strcmp(*argv, "wdafreq")) {
+			_RMNETCLI_CHECKNULL(argv[1]);
+			_RMNETCLI_CHECKNULL(argv[2]);
+			_RMNETCLI_CHECKNULL(argv[3]);
+
+			return_code = rtrmnet_set_wda_freq(handle, argv[1], argv[2],
+							   _STRTOUI32(argv[3]),
+							   &error_number);
 		}
 
 

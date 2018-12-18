@@ -668,5 +668,17 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 			  int flags,
 			  uint16_t *error_code);
 
+int rtrmnet_set_qmi_scale(rmnetctl_hndl_t *hndl,
+			  char *devname,
+			  char *vndname,
+			  uint32_t scale,
+			  uint16_t *error_code);
+
+int rtrmnet_set_wda_freq(rmnetctl_hndl_t *hndl,
+			 char *devname,
+			 char *vndname,
+			 uint32_t freq,
+			 uint16_t *error_code);
+
 #endif /* not defined LIBRMNETCTL_H */
 

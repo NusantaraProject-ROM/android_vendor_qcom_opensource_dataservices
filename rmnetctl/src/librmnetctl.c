@@ -108,6 +108,10 @@ enum {
 	RMNET_FLOW_MSG_UP = 4,
 	/* Flow down */
 	RMNET_FLOW_MSG_DOWN = 5,
+	/* Change ACK scaling */
+	RMNET_FLOW_MSG_QMI_SCALE = 6,
+	/* Change powersave workqueue polling freq */
+	RMNET_FLOW_MSG_WDA_FREQ = 7,
 };
 
 #define RMNETCTL_NUM_TX_QUEUES 10
@@ -1891,6 +1895,106 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 
 	flowinfo.tcm_handle = instance;
 	flowinfo.tcm_family = RMNET_FLOW_MSG_DOWN;
+
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
+		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
+		return RMNETCTL_LIB_ERR;
+	}
+
+	return rmnet_get_ack(hndl, error_code);
+}
+
+int rtrmnet_set_qmi_scale(rmnetctl_hndl_t *hndl,
+			  char *devname,
+			  char *vndname,
+			  uint32_t scale,
+			  uint16_t *error_code)
+{
+	struct tcmsg  flowinfo;
+	struct nlmsg req;
+	unsigned int devindex = 0;
+	size_t reqsize;
+	int rc;
+
+	memset(&req, 0, sizeof(req));
+	memset(&flowinfo, 0, sizeof(flowinfo));
+
+	if (!hndl || !devname || !error_code ||_rmnetctl_check_dev_name(devname) ||
+		_rmnetctl_check_dev_name(vndname) || !scale)
+		return RMNETCTL_INVALID_ARG;
+
+	reqsize = NLMSG_DATA_SIZE - sizeof(struct rtattr);
+	req.nl_addr.nlmsg_type = RTM_NEWLINK;
+	req.nl_addr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nl_addr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nl_addr.nlmsg_seq = hndl->transaction_id;
+	hndl->transaction_id++;
+
+	/* Get index of devname*/
+	devindex = if_nametoindex(devname);
+	if (devindex == 0) {
+		*error_code = errno;
+		return RMNETCTL_KERNEL_ERR;
+	}
+
+	flowinfo.tcm_ifindex = scale;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_QMI_SCALE;
+
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
+		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
+		return RMNETCTL_LIB_ERR;
+	}
+
+	return rmnet_get_ack(hndl, error_code);
+}
+
+int rtrmnet_set_wda_freq(rmnetctl_hndl_t *hndl,
+			 char *devname,
+			 char *vndname,
+			 uint32_t freq,
+			 uint16_t *error_code)
+{
+	struct tcmsg  flowinfo;
+	struct nlmsg req;
+	unsigned int devindex = 0;
+	size_t reqsize;
+	int rc;
+
+	memset(&req, 0, sizeof(req));
+	memset(&flowinfo, 0, sizeof(flowinfo));
+
+	if (!hndl || !devname || !error_code ||_rmnetctl_check_dev_name(devname) ||
+		_rmnetctl_check_dev_name(vndname))
+		return RMNETCTL_INVALID_ARG;
+
+	reqsize = NLMSG_DATA_SIZE - sizeof(struct rtattr);
+	req.nl_addr.nlmsg_type = RTM_NEWLINK;
+	req.nl_addr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nl_addr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nl_addr.nlmsg_seq = hndl->transaction_id;
+	hndl->transaction_id++;
+
+	/* Get index of devname*/
+	devindex = if_nametoindex(devname);
+	if (devindex == 0) {
+		*error_code = errno;
+		return RMNETCTL_KERNEL_ERR;
+	}
+
+	flowinfo.tcm_ifindex = freq;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_WDA_FREQ;
 
 	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
 	if (rc != RMNETCTL_SUCCESS) {
