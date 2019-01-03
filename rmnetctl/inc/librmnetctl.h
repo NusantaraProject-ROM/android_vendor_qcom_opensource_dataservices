@@ -591,6 +591,23 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 			  uint16_t *error_code, uint8_t  index,
 			  uint32_t flagconfig);
 
+/* @brief Public API to retrieve configuration of a virtual device node
+ * @details Message type is RTM_GETLINK
+ * @param hndl RmNet handle for the Netlink message
+ * @param vndname Name of virtual device to query
+ * @param error_code Status code of this operation returned from the kernel
+ * @param mux_id Where to store the value of the node's mux id
+ * @param flagconfig Where to store the value of the node's data format flags
+ * @return RMNETCTL_SUCCESS if successful
+ * @return RMNETCTL_LIB_ERR if there was a library error. Check error_code
+ * @return RMNETCTL_KERNEL_ERR if there was an error in the kernel.
+ * Check error_code
+ * @return RMNETCTL_INVALID_ARF if invalid arguments were passed to the API
+ */
+int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
+		       uint16_t *error_code, uint16_t *mux_id,
+		       uint32_t *flagconfig);
+
 /* @brief Public API to bridge a vnd and device
  * @details Message type is RTM_NEWLINK
  * @param hndl RmNet handle for the Netlink message

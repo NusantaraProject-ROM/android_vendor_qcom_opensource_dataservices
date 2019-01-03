@@ -2,7 +2,7 @@
 
 			R M N E T C L I . C
 
-Copyright (c) 2013-2015, 2017-2018 The Linux Foundation. All rights reserved.
+Copyright (c) 2013-2015, 2017-2019 The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -218,6 +218,7 @@ static void rmnet_api_usage(void)
 	printf(_2TABS" <vnd>                   string - vnd device_name");
 	printf(_2TABS" <vnd id>                int - new vnd id");
 	printf(_2TABS" <flags>                 int - new flag config\n\n");
+	printf("rmnetcli -n getlink <dev_name>           Get device config\n\n");
 	printf("rmnetcli -n dellink <dev_name>           Delete a vnd");
 	printf(_2TABS"                         by inputting dev name\n\n");
 	printf("rmnetcli -n bridgelink  <dev_name>       Bridge a vnd and a dev");
@@ -359,6 +360,19 @@ static int rmnet_api_call(int argc, char *argv[])
 							    &error_number,
 							    _STRTOI32(argv[3]),
 							    _STRTOI32(argv[4]));
+		} else if (!strcmp(*argv, "getlink")) {
+			_RMNETCLI_CHECKNULL(argv[1]);
+			uint32_t flags = 0;
+			uint16_t mux_id = 0;
+
+			return_code = rtrmnet_ctl_getvnd(handle, argv[1],
+							 &error_number,
+							 &mux_id, &flags);
+			if (return_code == RMNETCTL_API_SUCCESS) {
+				printf("Configuration for device %s:\n", argv[1]);
+				printf("\tMux id: %d\n", mux_id);
+				printf("\tData format: 0x%04x\n", flags);
+			}
 		} else if (!strcmp(*argv, "dellink")) {
 			_RMNETCLI_CHECKNULL(argv[1]);
 				return_code = rtrmnet_ctl_delvnd(handle, argv[1],
