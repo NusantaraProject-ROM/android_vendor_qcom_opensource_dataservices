@@ -1096,6 +1096,67 @@ static void rta_nested_end(struct nlmsg *req, struct rtattr *start)
 	start->rta_len = (char *)NLMSG_TAIL(&req->nl_addr) - (char *)start;
 }
 
+/* @brief Fill a Netlink messages with the necessary common RTAs for creating a
+ * RTM_NEWLINK message for creating or changing rmnet devices.
+ * @param *req The netlink message
+ * @param *reqsize The remaining space within the Netlink message
+ * @param devindex The ifindex of the physical device
+ * @param *vndname The name of the rmnet device
+ * @param index The MUX ID of the rmnet device
+ * @param flagconfig The dataformat flags for the rmnet device
+ * @return RMNETCTL_LIB_ERR if there is not enough space to add all RTAs
+ * @return RMNETCTL_SUCCESS if everything was added successfully
+ */
+static int rmnet_fill_newlink_msg(struct nlmsg *req, size_t *reqsize,
+				  unsigned int devindex, char *vndname,
+				  uint8_t index, uint32_t flagconfig)
+{
+	struct rtattr *linkinfo, *datainfo;
+	struct ifla_vlan_flags flags;
+	int rc;
+
+	/* Set up link attr with devindex as data */
+	rc = rta_put_u32(req, reqsize, IFLA_LINK, devindex);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put_string(req, reqsize, IFLA_IFNAME, vndname);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	/* Set up info kind RMNET that has linkinfo and type */
+	rc = rta_nested_start(req, reqsize, IFLA_LINKINFO, &linkinfo);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put_string(req, reqsize, IFLA_INFO_KIND, "rmnet");
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_nested_start(req, reqsize, IFLA_INFO_DATA, &datainfo);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put_u16(req, reqsize, IFLA_VLAN_ID, index);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	if (flagconfig != 0) {
+		flags.mask = flagconfig;
+		flags.flags = flagconfig;
+
+		rc = rta_put(req, reqsize, IFLA_VLAN_FLAGS, sizeof(flags),
+			     &flags);
+		if (rc != RMNETCTL_SUCCESS)
+			return rc;
+	}
+
+	rta_nested_end(req, datainfo);
+	rta_nested_end(req, linkinfo);
+
+	return RMNETCTL_SUCCESS;
+}
+
 /* @brief Add all necessary RTA elements to a Netlink message suitable for
  * sending to the DFC driver
  * @param *req The Netlink message
@@ -1268,10 +1329,7 @@ int rtrmnet_ctl_newvnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 		       uint16_t *error_code, uint8_t  index,
 		       uint32_t flagconfig)
 {
-	struct rtattr *datainfo, *linkinfo;
-	struct ifla_vlan_flags flags;
 	unsigned int devindex = 0;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	size_t reqsize;
 	int rc;
@@ -1296,50 +1354,16 @@ int rtrmnet_ctl_newvnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
 	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	rc = rta_put_u32(&req, &reqsize, RMNET_IFLA_NUM_TX_QUEUES,
 			 RMNETCTL_NUM_TX_QUEUES);
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
 
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
+	rc = rmnet_fill_newlink_msg(&req, &reqsize, devindex, vndname, index,
+				    flagconfig);
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_u16(&req, &reqsize, IFLA_VLAN_ID, index);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	if (flagconfig != 0) {
-		flags.mask  = flagconfig;
-		flags.flags = flagconfig;
-
-		rc = rta_put(&req, &reqsize, IFLA_VLAN_FLAGS, sizeof(flags),
-			     &flags);
-		if (rc != RMNETCTL_SUCCESS)
-			return rc;
-	}
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
@@ -1387,9 +1411,6 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 			  uint16_t *error_code, uint8_t  index,
 			  uint32_t flagconfig)
 {
-	struct rtattr *datainfo, *linkinfo;
-	struct ifla_vlan_flags flags;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize;
@@ -1415,45 +1436,12 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_newlink_msg(&req, &reqsize, devindex, vndname, index,
+				    flagconfig);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_u16(&req, &reqsize, IFLA_VLAN_ID, index);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	if (flagconfig != 0) {
-		flags.mask  = flagconfig;
-		flags.flags = flagconfig;
-
-		rc = rta_put(&req, &reqsize, IFLA_VLAN_FLAGS, sizeof(flags),
-			     &flags);
-		if (rc != RMNETCTL_SUCCESS)
-			return rc;
 	}
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
