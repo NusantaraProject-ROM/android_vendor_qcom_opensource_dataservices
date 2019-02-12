@@ -96,6 +96,20 @@ struct nlmsg {
 	char data[NLMSG_DATA_SIZE];
 };
 
+/* Flow message types sent to DFC driver */
+enum {
+	/* Activate flow */
+	RMNET_FLOW_MSG_ACTIVATE = 1,
+	/* Delete flow */
+	RMNET_FLOW_MSG_DEACTIVATE = 2,
+	/* Legacy flow control */
+	RMNET_FLOW_MSG_CONTROL = 3,
+	/* Flow up */
+	RMNET_FLOW_MSG_UP = 4,
+	/* Flow down */
+	RMNET_FLOW_MSG_DOWN = 5,
+};
+
 #define RMNETCTL_NUM_TX_QUEUES 10
 
 /* This needs to be hardcoded here because some legacy linux systems
@@ -1538,7 +1552,7 @@ int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 	}
 
 	flowinfo.tcm_handle = tcm_handle;
-	flowinfo.tcm_family = 0x1;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_ACTIVATE;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm_ifindex = ip_type;
 	flowinfo.tcm_parent = flow_id;
@@ -1593,7 +1607,7 @@ int rtrmnet_delete_flow(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	flowinfo.tcm_family = 0x2;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_DEACTIVATE;
 	flowinfo.tcm_ifindex = ip_type;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm_parent = flow_id;
@@ -1648,7 +1662,7 @@ int rtrmnet_control_flow(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	flowinfo.tcm_family = 0x3;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_CONTROL;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm__pad2 = sequence;
 	flowinfo.tcm_parent = ack;
@@ -1706,7 +1720,7 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 	}
 
 	flowinfo.tcm_handle = instance;
-	flowinfo.tcm_family = 0x4;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_UP;
 	flowinfo.tcm_ifindex = flags;
 	flowinfo.tcm_parent = ifaceid;
 	flowinfo.tcm_info = ep_type;
@@ -1760,7 +1774,7 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 	}
 
 	flowinfo.tcm_handle = instance;
-	flowinfo.tcm_family = 0x5;
+	flowinfo.tcm_family = RMNET_FLOW_MSG_DOWN;
 
 	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
 	if (rc != RMNETCTL_SUCCESS) {
