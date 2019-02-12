@@ -2,7 +2,7 @@
 
 			  L I B R M N E T C T L . H
 
-Copyright (c) 2013-2015, 2017-2018 The Linux Foundation. All rights reserved.
+Copyright (c) 2013-2015, 2017-2019 The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -129,6 +129,10 @@ enum rmnetctl_error_codes_e {
 	/* TC handle is full */
 	RMNETCTL_KERNEL_ERR_TC_HANDLE_FULL = 24,
 
+	RMNETCTL_API_THIRD_ERR = 25,
+	/* Failed to copy data into netlink message */
+	RMNETCTL_API_ERR_RTA_FAILURE = RMNETCTL_API_THIRD_ERR,
+
 	/* This should always be the last element */
 	RMNETCTL_API_ERR_ENUM_LENGTH
 };
@@ -165,7 +169,9 @@ char rmnetctl_error_code_text
 	"ERROR: Device doesn't exist\n",
 	"ERROR: One or more of the arguments is invalid\n",
 	"ERROR: Egress device is invalid\n",
-	"ERROR: TC handle is full\n"
+	"ERROR: TC handle is full\n",
+	/* New Rmnet Driver Errors */
+	"ERROR: Netlink message is too small to hold all data\n",
 };
 
 /*===========================================================================
