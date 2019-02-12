@@ -1096,6 +1096,56 @@ static void rta_nested_end(struct nlmsg *req, struct rtattr *start)
 	start->rta_len = (char *)NLMSG_TAIL(&req->nl_addr) - (char *)start;
 }
 
+/* @brief Add all necessary RTA elements to a Netlink message suitable for
+ * sending to the DFC driver
+ * @param *req The Netlink message
+ * @param *reqsize The remaining space in the Netlink message
+ * @param devindex The ifindex of the real physical device
+ * @param *vndname The name of the VND we're modifying
+ * @param *flowinfo The parameters sent to the DFC driver
+ * @return RMENTCTL_LIB_ERR if there is not enough space to add the RTAs
+ * @return RMNETCTL_SUCCESS if everything was added successfully
+ */
+static int rmnet_fill_flow_msg(struct nlmsg *req, size_t *reqsize,
+			       unsigned int devindex, char *vndname,
+			       struct tcmsg *flowinfo)
+{
+	struct rtattr *linkinfo, *datainfo;
+	int rc;
+
+	/* Set up link attr with devindex as data */
+	rc = rta_put_u32(req, reqsize, IFLA_LINK, devindex);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put_string(req, reqsize, IFLA_IFNAME, vndname);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	/* Set up IFLA info kind RMNET that has linkinfo and type */
+	rc = rta_nested_start(req, reqsize, IFLA_LINKINFO, &linkinfo);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put_string(req, reqsize, IFLA_INFO_KIND, "rmnet");
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_nested_start(req, reqsize, IFLA_INFO_DATA, &datainfo);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rc = rta_put(req, reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(*flowinfo),
+		     flowinfo);
+	if (rc != RMNETCTL_SUCCESS)
+		return rc;
+
+	rta_nested_end(req, datainfo);
+	rta_nested_end(req, linkinfo);
+
+	return RMNETCTL_SUCCESS;
+}
+
 /* @brief Synchronous method to receive messages to and from the kernel
  * using netlink sockets
  * @details Receives the ack response from the kernel.
@@ -1471,9 +1521,7 @@ int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 			  uint32_t tcm_handle,
 			  uint16_t *error_code)
 {
-	struct rtattr *datainfo, *linkinfo;
 	struct tcmsg  flowinfo;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize =0;
@@ -1501,42 +1549,17 @@ int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	flowinfo.tcm_handle = tcm_handle;
 	flowinfo.tcm_family = 0x1;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm_ifindex = ip_type;
 	flowinfo.tcm_parent = flow_id;
 
-	rc = rta_put(&req, &reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(flowinfo),
-		     &flowinfo);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
+	}
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
@@ -1555,9 +1578,7 @@ int rtrmnet_delete_flow(rmnetctl_hndl_t *hndl,
 			  int ip_type,
 			  uint16_t *error_code)
 {
-	struct rtattr *datainfo, *linkinfo;
 	struct tcmsg  flowinfo;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize;
@@ -1584,41 +1605,16 @@ int rtrmnet_delete_flow(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	flowinfo.tcm_family = 0x2;
 	flowinfo.tcm_ifindex = ip_type;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm_parent = flow_id;
 
-	rc = rta_put(&req, &reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(flowinfo),
-		     &flowinfo);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
+	}
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
@@ -1637,9 +1633,7 @@ int rtrmnet_control_flow(rmnetctl_hndl_t *hndl,
 			  uint8_t ack,
 			  uint16_t *error_code)
 {
-	struct rtattr *datainfo, *linkinfo;
 	struct tcmsg  flowinfo;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize;
@@ -1666,42 +1660,17 @@ int rtrmnet_control_flow(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_LINKINFO, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	flowinfo.tcm_family = 0x3;
 	flowinfo.tcm__pad1 = bearer_id;
 	flowinfo.tcm__pad2 = sequence;
 	flowinfo.tcm_parent = ack;
 	flowinfo.tcm_info = grantsize;
 
-	rc = rta_put(&req, &reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(flowinfo),
-		     &flowinfo);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
+	}
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
@@ -1721,9 +1690,7 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 			  int flags,
 			  uint16_t *error_code)
 {
-	struct rtattr *datainfo, *linkinfo;
 	struct tcmsg  flowinfo;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize;
@@ -1750,42 +1717,17 @@ int rtrmnet_flow_state_up(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	flowinfo.tcm_handle = instance;
 	flowinfo.tcm_family = 0x4;
 	flowinfo.tcm_ifindex = flags;
 	flowinfo.tcm_parent = ifaceid;
 	flowinfo.tcm_info = ep_type;
 
-	rc = rta_put(&req, &reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(flowinfo),
-		     &flowinfo);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
+	}
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
@@ -1802,9 +1744,7 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 			  uint32_t instance,
 			  uint16_t *error_code)
 {
-	struct rtattr *datainfo, *linkinfo;
 	struct tcmsg  flowinfo;
-	char *kind = "rmnet";
 	struct nlmsg req;
 	unsigned int devindex = 0;
 	size_t reqsize;
@@ -1831,39 +1771,14 @@ int rtrmnet_flow_state_down(rmnetctl_hndl_t *hndl,
 		return RMNETCTL_KERNEL_ERR;
 	}
 
-	/* Setup link attr with devindex as data */
-	*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
-	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	/* Set up IFLA info kind  RMNET that has linkinfo and type */
-	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, kind);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
-	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
-	if (rc != RMNETCTL_SUCCESS)
-		return rc;
-
 	flowinfo.tcm_handle = instance;
 	flowinfo.tcm_family = 0x5;
 
-	rc = rta_put(&req, &reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(flowinfo),
-		     &flowinfo);
-	if (rc != RMNETCTL_SUCCESS)
+	rc = rmnet_fill_flow_msg(&req, &reqsize, devindex, vndname, &flowinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
 		return rc;
-
-	rta_nested_end(&req, datainfo);
-	rta_nested_end(&req, linkinfo);
+	}
 
 	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
 		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
