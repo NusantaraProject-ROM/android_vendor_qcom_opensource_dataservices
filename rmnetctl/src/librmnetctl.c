@@ -96,6 +96,15 @@ struct nlmsg {
 	char data[NLMSG_DATA_SIZE];
 };
 
+/* IFLA Attributes for the RT RmNet driver */
+enum {
+	RMNETCTL_IFLA_UNSPEC,
+	RMNETCTL_IFLA_MUX_ID,
+	RMNETCTL_IFLA_FLAGS,
+	RMNETCTL_IFLA_DFC_QOS,
+	__RMNETCTL_IFLA_MAX,
+};
+
 /* Flow message types sent to DFC driver */
 enum {
 	/* Activate flow */
@@ -1180,7 +1189,7 @@ static int rmnet_fill_newlink_msg(struct nlmsg *req, size_t *reqsize,
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
 
-	rc = rta_put_u16(req, reqsize, IFLA_VLAN_ID, index);
+	rc = rta_put_u16(req, reqsize, RMNETCTL_IFLA_MUX_ID, index);
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
 
@@ -1188,7 +1197,7 @@ static int rmnet_fill_newlink_msg(struct nlmsg *req, size_t *reqsize,
 		flags.mask = flagconfig;
 		flags.flags = flagconfig;
 
-		rc = rta_put(req, reqsize, IFLA_VLAN_FLAGS, sizeof(flags),
+		rc = rta_put(req, reqsize, RMNETCTL_IFLA_FLAGS, sizeof(flags),
 			     &flags);
 		if (rc != RMNETCTL_SUCCESS)
 			return rc;
@@ -1239,7 +1248,7 @@ static int rmnet_fill_flow_msg(struct nlmsg *req, size_t *reqsize,
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
 
-	rc = rta_put(req, reqsize, IFLA_VLAN_EGRESS_QOS, sizeof(*flowinfo),
+	rc = rta_put(req, reqsize, RMNETCTL_IFLA_DFC_QOS, sizeof(*flowinfo),
 		     flowinfo);
 	if (rc != RMNETCTL_SUCCESS)
 		return rc;
@@ -1501,7 +1510,7 @@ int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 	struct nlmsg req;
 	struct nlmsghdr *resp;
 	struct rtattr *attrs, *linkinfo, *datainfo;
-	struct rtattr *tb[IFLA_VLAN_MAX + 1];
+	struct rtattr *tb[__RMNETCTL_IFLA_MAX];
 	unsigned int devindex = 0;
 	int resp_len;
 
@@ -1569,15 +1578,15 @@ int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 	}
 
 	/* Parse all the rmnet-specific information from the kernel */
-	rta_parse(tb, IFLA_VLAN_MAX + 1, RTA_DATA(datainfo),
+	rta_parse(tb, __RMNETCTL_IFLA_MAX, RTA_DATA(datainfo),
 		  RTA_PAYLOAD(datainfo));
-	if (tb[IFLA_VLAN_ID] && mux_id)
-		*mux_id = *((uint16_t *)RTA_DATA(tb[IFLA_VLAN_ID]));
-	if (tb[IFLA_VLAN_FLAGS] && flagconfig) {
+	if (tb[RMNETCTL_IFLA_MUX_ID] && mux_id)
+		*mux_id = *((uint16_t *)RTA_DATA(tb[RMNETCTL_IFLA_MUX_ID]));
+	if (tb[RMNETCTL_IFLA_FLAGS] && flagconfig) {
 		struct ifla_vlan_flags *flags;
 
 		flags = (struct ifla_vlan_flags *)
-			 RTA_DATA(tb[IFLA_VLAN_FLAGS]);
+			 RTA_DATA(tb[RMNETCTL_IFLA_FLAGS]);
 		*flagconfig = flags->flags;
 	}
 
