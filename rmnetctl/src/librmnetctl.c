@@ -96,12 +96,19 @@ struct nlmsg {
 	char data[NLMSG_DATA_SIZE];
 };
 
+struct rmnetctl_uplink_params {
+	uint16_t byte_count;
+	uint16_t packet_count;
+	uint32_t time_limit;
+};
+
 /* IFLA Attributes for the RT RmNet driver */
 enum {
 	RMNETCTL_IFLA_UNSPEC,
 	RMNETCTL_IFLA_MUX_ID,
 	RMNETCTL_IFLA_FLAGS,
 	RMNETCTL_IFLA_DFC_QOS,
+	RMNETCTL_IFLA_UPLINK_PARAMS,
 	__RMNETCTL_IFLA_MAX,
 };
 
@@ -1642,6 +1649,95 @@ int rtrmnet_ctl_bridgevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 	return rmnet_get_ack(hndl, error_code);
 }
 
+int rtrmnet_set_uplink_aggregation_params(rmnetctl_hndl_t *hndl,
+					  char *devname,
+					  char *vndname,
+					  uint8_t packet_count,
+					  uint16_t byte_count,
+					  uint32_t time_limit,
+					  uint16_t *error_code)
+{
+	struct nlmsg req;
+	struct rmnetctl_uplink_params uplink_params;
+	struct rtattr *linkinfo, *datainfo;
+	unsigned int devindex = 0;
+	size_t reqsize;
+	int rc;
+
+	memset(&req, 0, sizeof(req));
+	memset(&uplink_params, 0, sizeof(uplink_params));
+
+	if (!hndl || !devname || !error_code ||_rmnetctl_check_dev_name(devname) ||
+		_rmnetctl_check_dev_name(vndname))
+		return RMNETCTL_INVALID_ARG;
+
+	reqsize = NLMSG_DATA_SIZE - sizeof(struct rtattr);
+	req.nl_addr.nlmsg_type = RTM_NEWLINK;
+	req.nl_addr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nl_addr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nl_addr.nlmsg_seq = hndl->transaction_id;
+	hndl->transaction_id++;
+
+	/* Get index of devname*/
+	devindex = if_nametoindex(devname);
+	if (devindex == 0) {
+		*error_code = errno;
+		return RMNETCTL_KERNEL_ERR;
+	}
+
+	/* Set up link attr with devindex as data */
+	rc = rta_put_u32(&req, &reqsize, IFLA_LINK, devindex);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	rc = rta_put_string(&req, &reqsize, IFLA_IFNAME, vndname);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	/* Set up IFLA info kind RMNET that has linkinfo and type */
+	rc = rta_nested_start(&req, &reqsize, IFLA_LINKINFO, &linkinfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	rc = rta_put_string(&req, &reqsize, IFLA_INFO_KIND, "rmnet");
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	rc = rta_nested_start(&req, &reqsize, IFLA_INFO_DATA, &datainfo);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	uplink_params.byte_count = byte_count;
+	uplink_params.packet_count = packet_count;
+	uplink_params.time_limit = time_limit;
+	rc = rta_put(&req, &reqsize, RMNETCTL_IFLA_UPLINK_PARAMS,
+		     sizeof(uplink_params), &uplink_params);
+	if (rc != RMNETCTL_SUCCESS) {
+		*error_code = RMNETCTL_API_ERR_RTA_FAILURE;
+		return rc;
+	}
+
+	rta_nested_end(&req, datainfo);
+	rta_nested_end(&req, linkinfo);
+
+	if (send(hndl->netlink_fd, &req, req.nl_addr.nlmsg_len, 0) < 0) {
+		*error_code = RMNETCTL_API_ERR_MESSAGE_SEND;
+		return RMNETCTL_LIB_ERR;
+	}
+
+	return rmnet_get_ack(hndl, error_code);
+
+}
 
 int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
 			  char *devname,
