@@ -374,14 +374,23 @@ static int rmnet_api_call(int argc, char *argv[])
 			_RMNETCLI_CHECKNULL(argv[1]);
 			uint32_t flags = 0;
 			uint16_t mux_id = 0;
+			uint16_t agg_count = 0;
+			uint16_t agg_size = 0;
+			uint32_t agg_time = 0;
 
 			return_code = rtrmnet_ctl_getvnd(handle, argv[1],
 							 &error_number,
-							 &mux_id, &flags);
+							 &mux_id, &flags,
+							 &agg_count, &agg_size,
+							 &agg_time);
 			if (return_code == RMNETCTL_API_SUCCESS) {
 				printf("Configuration for device %s:\n", argv[1]);
 				printf("\tMux id: %d\n", mux_id);
 				printf("\tData format: 0x%04x\n", flags);
+				printf("\tUplink Aggregation parameters:\n");
+				printf("\t\tPacket limit: %d\n", agg_count);
+				printf("\t\tByte limit: %d\n", agg_size);
+				printf("\t\tTime limit (ns): %d\n", agg_time);
 			}
 		} else if (!strcmp(*argv, "dellink")) {
 			_RMNETCLI_CHECKNULL(argv[1]);

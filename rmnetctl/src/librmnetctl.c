@@ -1512,7 +1512,8 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 
 int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 		       uint16_t *error_code, uint16_t *mux_id,
-		       uint32_t *flagconfig)
+		       uint32_t *flagconfig, uint16_t *agg_count,
+		       uint16_t *agg_size, uint32_t *agg_time)
 {
 	struct nlmsg req;
 	struct nlmsghdr *resp;
@@ -1595,6 +1596,18 @@ int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 		flags = (struct ifla_vlan_flags *)
 			 RTA_DATA(tb[RMNETCTL_IFLA_FLAGS]);
 		*flagconfig = flags->flags;
+	}
+	if (tb[RMNETCTL_IFLA_UPLINK_PARAMS]) {
+		struct rmnetctl_uplink_params *ul_agg;
+
+		ul_agg = (struct rmnetctl_uplink_params *)
+			 RTA_DATA(tb[RMNETCTL_IFLA_UPLINK_PARAMS]);
+		if (agg_count)
+			*agg_count = ul_agg->packet_count;
+		if (agg_size)
+			*agg_size = ul_agg->byte_count;
+		if (agg_time)
+			*agg_time = ul_agg->time_limit;
 	}
 
 	free(resp);
