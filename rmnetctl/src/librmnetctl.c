@@ -98,7 +98,8 @@ struct nlmsg {
 
 struct rmnetctl_uplink_params {
 	uint16_t byte_count;
-	uint16_t packet_count;
+	uint8_t packet_count;
+	uint8_t features;
 	uint32_t time_limit;
 };
 
@@ -1512,8 +1513,9 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
 
 int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 		       uint16_t *error_code, uint16_t *mux_id,
-		       uint32_t *flagconfig, uint16_t *agg_count,
-		       uint16_t *agg_size, uint32_t *agg_time)
+		       uint32_t *flagconfig, uint8_t *agg_count,
+		       uint16_t *agg_size, uint32_t *agg_time,
+		       uint8_t *features)
 {
 	struct nlmsg req;
 	struct nlmsghdr *resp;
@@ -1602,10 +1604,16 @@ int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 
 		ul_agg = (struct rmnetctl_uplink_params *)
 			 RTA_DATA(tb[RMNETCTL_IFLA_UPLINK_PARAMS]);
-		if (agg_count)
-			*agg_count = ul_agg->packet_count;
+
 		if (agg_size)
 			*agg_size = ul_agg->byte_count;
+
+		if (agg_count)
+			*agg_count = ul_agg->packet_count;
+
+		if (features)
+			*features = ul_agg->features;
+
 		if (agg_time)
 			*agg_time = ul_agg->time_limit;
 	}
@@ -1668,6 +1676,7 @@ int rtrmnet_set_uplink_aggregation_params(rmnetctl_hndl_t *hndl,
 					  uint8_t packet_count,
 					  uint16_t byte_count,
 					  uint32_t time_limit,
+					  uint8_t features,
 					  uint16_t *error_code)
 {
 	struct nlmsg req;
@@ -1732,6 +1741,7 @@ int rtrmnet_set_uplink_aggregation_params(rmnetctl_hndl_t *hndl,
 
 	uplink_params.byte_count = byte_count;
 	uplink_params.packet_count = packet_count;
+	uplink_params.features = features;
 	uplink_params.time_limit = time_limit;
 	rc = rta_put(&req, &reqsize, RMNETCTL_IFLA_UPLINK_PARAMS,
 		     sizeof(uplink_params), &uplink_params);

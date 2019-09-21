@@ -1,3 +1,11 @@
+TARGET_DISABLE_RMNT := false
+ifeq ($(TARGET_USES_QMAA),true)
+ifneq ($(TARGET_USES_QMAA_OVERRIDE_DATA),true)
+TARGET_DISABLE_RMNT := true
+endif
+endif
+ifneq ($(TARGET_DISABLE_RMNT),true)
+
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -17,3 +25,4 @@ LOCAL_SHARED_LIBRARIES := librmnetctl
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/bin
 
 include $(BUILD_EXECUTABLE)
+endif
