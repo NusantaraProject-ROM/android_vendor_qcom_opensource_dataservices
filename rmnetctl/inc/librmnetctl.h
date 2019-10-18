@@ -604,6 +604,8 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
  * for uplink aggregation
  * @param agg_time Where to store the value of the node's maximum time limit
  * for uplink aggregation
+ * @param agg_time Where to store the value of the node's features
+ * for uplink aggregation
  * @return RMNETCTL_SUCCESS if successful
  * @return RMNETCTL_LIB_ERR if there was a library error. Check error_code
  * @return RMNETCTL_KERNEL_ERR if there was an error in the kernel.
@@ -612,8 +614,9 @@ int rtrmnet_ctl_changevnd(rmnetctl_hndl_t *hndl, char *devname, char *vndname,
  */
 int rtrmnet_ctl_getvnd(rmnetctl_hndl_t *hndl, char *vndname,
 		       uint16_t *error_code, uint16_t *mux_id,
-		       uint32_t *flagconfig, uint16_t *agg_count,
-		       uint16_t *agg_size, uint32_t *agg_time);
+		       uint32_t *flagconfig, uint8_t *agg_count,
+		       uint16_t *agg_size, uint32_t *agg_time,
+		       uint8_t *features);
 
 /* @brief Public API to bridge a vnd and device
  * @details Message type is RTM_NEWLINK
@@ -652,6 +655,7 @@ int rtrmnet_set_uplink_aggregation_params(rmnetctl_hndl_t *hndl,
 					  uint8_t packet_count,
 					  uint16_t byte_count,
 					  uint32_t time_limit,
+					  uint8_t features,
 					  uint16_t *error_code);
 
 int rtrmnet_activate_flow(rmnetctl_hndl_t *hndl,
