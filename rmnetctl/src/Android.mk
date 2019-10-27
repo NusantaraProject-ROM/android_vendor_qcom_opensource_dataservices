@@ -15,6 +15,10 @@ LOCAL_COPY_HEADERS      := ../inc/librmnetctl.h
 LOCAL_SRC_FILES := librmnetctl.c
 LOCAL_CFLAGS := -Wall -Werror
 
+ifeq ($(TARGET_USES_PRE_UPLINK_FEATURES_NETMGRD),true)
+    LOCAL_CFLAGS += -DNO_UPLINK_FEATURES
+endif
+
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../inc
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
 
