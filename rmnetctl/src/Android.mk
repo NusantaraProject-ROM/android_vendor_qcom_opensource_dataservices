@@ -1,6 +1,6 @@
 TARGET_DISABLE_RMNT := false
 ifeq ($(TARGET_USES_QMAA),true)
-ifneq ($(TARGET_USES_QMAA_OVERRIDE_DATA),true)
+ifneq ($(TARGET_USES_QMAA_OVERRIDE_DATA_NET),true)
 TARGET_DISABLE_RMNT := true
 endif
 endif
