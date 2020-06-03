@@ -427,6 +427,7 @@ static int rmnet_api_call(int argc, char *argv[])
 			_RMNETCLI_CHECKNULL(argv[3]);
 			_RMNETCLI_CHECKNULL(argv[4]);
 			_RMNETCLI_CHECKNULL(argv[5]);
+			_RMNETCLI_CHECKNULL(argv[6]);
 
 			return_code = rtrmnet_activate_flow(handle, argv[1], argv[2],
 							    _STRTOUI8(argv[3]),
