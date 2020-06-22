@@ -1142,7 +1142,7 @@ static void rta_parse(struct rtattr **tb, int maxtype, struct rtattr *head,
 	     rta = RTA_NEXT(rta, len)) {
 		__u16 type = rta->rta_type & NLA_TYPE_MASK;
 
-		if (type > 0 && type <= maxtype)
+		if (type > 0 && type < maxtype)
 			tb[type] = rta;
 	}
 }

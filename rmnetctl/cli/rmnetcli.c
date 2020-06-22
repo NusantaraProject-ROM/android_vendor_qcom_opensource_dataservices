@@ -2,7 +2,7 @@
 
 			R M N E T C L I . C
 
-Copyright (c) 2013-2015, 2017-2019 The Linux Foundation. All rights reserved.
+Copyright (c) 2013-2015, 2017-2020 The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -320,6 +320,8 @@ static int rmnet_api_call(int argc, char *argv[])
 	struct rmnetctl_hndl_s *handle = NULL;
 	uint16_t error_number = RMNETCTL_CFG_FAILURE_NO_COMMAND;
 	int return_code = RMNETCTL_LIB_ERR;
+	int is_new_api = 0;
+
 	if ((!argc) || (!*argv)) {
 		print_rmnet_api_status(RMNETCTL_LIB_ERR,
 		RMNETCTL_CFG_FAILURE_NO_COMMAND);
@@ -332,6 +334,7 @@ static int rmnet_api_call(int argc, char *argv[])
 	}
 
 	if (!strcmp(*argv, "-n")) {
+		is_new_api = 1;
 		return_code = rtrmnet_ctl_init(&handle, &error_number);
 		if (return_code != RMNETCTL_SUCCESS) {
 			print_rmnet_api_status(return_code, error_number);
@@ -424,6 +427,7 @@ static int rmnet_api_call(int argc, char *argv[])
 			_RMNETCLI_CHECKNULL(argv[3]);
 			_RMNETCLI_CHECKNULL(argv[4]);
 			_RMNETCLI_CHECKNULL(argv[5]);
+			_RMNETCLI_CHECKNULL(argv[6]);
 
 			return_code = rtrmnet_activate_flow(handle, argv[1], argv[2],
 							    _STRTOUI8(argv[3]),
@@ -631,8 +635,10 @@ static int rmnet_api_call(int argc, char *argv[])
 	}
 end:
 	print_rmnet_api_status(return_code, error_number);
-	rmnetctl_cleanup(handle);
-	rtrmnet_ctl_deinit(handle);
+	if (is_new_api)
+		rtrmnet_ctl_deinit(handle);
+	else
+		rmnetctl_cleanup(handle);
 	return return_code;
 }
 
