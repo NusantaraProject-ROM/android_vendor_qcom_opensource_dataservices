@@ -14,27 +14,13 @@ cc_defaults {
     vendor: true,
 }
 
-soong_config_module_type {
-    name: "librmnetctl_defaults_pre_uplink",
-    module_type: "cc_defaults",
-    config_namespace: "DATASERVICES",
-    bool_variables: ["USES_PRE_UPLINK_FEATURES_NETMGRD"],
-    properties: ["cflags"],
-}
-
-librmnetctl_defaults_pre_uplink {
-    name: "librmnetctl_pre_uplink",
-    soong_config_variables: {
-        USES_PRE_UPLINK_FEATURES_NETMGRD: {
-            cflags: ["-DNO_UPLINK_FEATURES"],
-        },
-    },
-}
-
 cc_library_shared {
     name: "librmnetctl",
     header_libs: ["generated_kernel_headers"],
-    defaults: ["librmnetctl_defaults", "librmnetctl_pre_uplink"],
+    defaults: [
+        "librmnetctl_defaults",
+        "librmnetctl_pre_uplink_defaults",
+    ],
     srcs: ["src/librmnetctl.c"],
 }
 
